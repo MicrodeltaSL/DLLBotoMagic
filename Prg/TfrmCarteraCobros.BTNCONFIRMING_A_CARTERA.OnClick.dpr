@@ -17,34 +17,65 @@ uses
   Winapi.Windows,
   Vcl.Controls,
   Vcl.DBGrids,
-  DMExecProc in 'DMExecProc.pas', FireDAC.Comp.Client {dmoExecProc: TDataModule};
+  StrUtils,
+  DMExecProc in 'DMExecProc.pas',
+  FireDAC.Comp.Client,
+  System.Types,
+  System.TypInfo,
+  Data.DB {dmoExecProc: TDataModule},
+  UDHelpers in 'helpers\UDHelpers.pas';
 
 {$R *.res}
 
 function Inicio(Sender: TObject): Boolean; stdcall;
 const
-     MUSR_ERR = 'No se ha encontrado el dset de la ventana.';
+     MUSR_ERR = 'No se ha especificado el datamodulo o el datasource de la ventana en la propiedad HelpKeyWord.';
+     MUSR_ERR_NO_DATA_SET = 'No se ha encontrado el dataset de la ventana.';
 var
   FormLlamada: TForm;
   ButtonName: string;
-  TableName: string;
+  DllData: TDllData;
   DMProc: TdmoExecProc;
+  dsrc: TDataSource;
   Qry: TFDQuery;
-  Grid: TDBGrid;
+  valsHelpKeyword: TStringDynArray;
+  I: integer;
 begin
   FormLlamada := TForm(TComponent(sender).Owner);
   ButtonName  := TComponent(Sender).Name;
-  TableName   := TControl(Sender).helpKeyWord;
-  Grid        := TDBGrid(FormLlamada.FindComponent('dbgrdLista'));
-  Qry         := TFDQuery(Grid.DataSource.DataSet);
+  valsHelpKeyword := SplitString(TControl(Sender).helpKeyWord, '.');
+
+  if length(valsHelpKeyword) < 2 then
+    raise Exception.Create(MUSR_ERR);
+
+  DllData.DmoComp  := valsHelpKeyword[0];
+  DllData.DsrcComp := valsHelpKeyword[1];
+
+  Qry := nil;
+
+  I := 0;
+  while I < FormLlamada.ComponentCount do
+  begin
+    { See if DataSource name = DllData.DsrcComp }
+    if HasDataSource(FormLlamada.Components[I], dsrc) then
+    begin
+      if dsrc.Name = DllData.DsrcComp then
+      begin
+        Qry := TFDQuery(Dsrc.DataSet);
+        if Assigned(Qry) then
+          { Salir del bucle. }
+          I := FormLlamada.ComponentCount;
+      end;
+    end;
+    Inc(I);
+  end;
 
   if not Assigned(Qry) then
-    raise Exception.Create(MUSR_ERR);
+    raise Exception.Create(MUSR_ERR_NO_DATA_SET);
 
   try
     DMProc           := TdmoExecProc.Create(nil);
     DMProc.ProcName  := ButtonName;
-    DMProc.TableName := TableName;
     DMProc.CargarProcedimiento(Qry);
   finally
     DMProc.Free;

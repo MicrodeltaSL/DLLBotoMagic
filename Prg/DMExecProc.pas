@@ -11,6 +11,14 @@ uses
   FireDAC.Phys.FBDef, FireDAC.VCLUI.Wait;
 
 type
+
+  TDllData = record
+    { string identificativo de un data modulo }
+    DmoComp: string;
+    { string identificativo de un data source }
+    DsrcComp: string;
+  end;
+
   TdmoExecProc = class(TDataModule)
     qryGetPKFields: TFDQuery;
     fdConnection: TFDConnection;
@@ -18,20 +26,16 @@ type
     qryGetPKFieldsFIELD_NAME: TStringField;
     qryGetPKFieldsTABLE_NAME: TStringField;
     qryProc: TFDQuery;
+    fdStoredProc: TFDStoredProc;
   private
     { Private declarations }
     FProcName  : string;
-    FTableName : string;
-    FParamsStr : string;
     procedure AsignConectionFromDM(Qry: TFDQuery);
-    procedure SetTableName(const Value: string);
     procedure FormatearProcedimiento(Qry: TFDQuery);
     function ExecProcedimiento : boolean;
-    procedure RefrescarQry(Qry: TFDQuery);
   public
     { Public declarations }
     property ProcName  : string read FProcName write FProcName;
-    property TableName : string read FTableName write SetTableName;
     procedure CargarProcedimiento(Qry: TFDQuery);
   end;
 
@@ -49,23 +53,18 @@ uses
 
 const
      RES_FIELD = 'CORRECTO';
-     sqlProc = 'Select ' + RES_FIELD + ' from %s';
 
 { TdmoExecProc }
 
 procedure TdmoExecProc.AsignConectionFromDM(Qry: TFDQuery);
 const
      MUSR_ERR = 'No se ha podido assignar la conexión a la BD. No se ha encontrado el componente de conexión.';
-var
-   ConFD: TFDCustomConnection;
 begin
-  ConFD := Qry.Connection;
-  if not Assigned(ConFD) then
-  begin
+  if not Assigned(Qry.Connection) then
     raise Exception.Create(MUSR_ERR);
-  end;
+
   { Transferir la conexión entrante a la conexión de la DLL  }
-  fdConnection.SharedCliHandle := ConFD.CliHandle;
+  fdConnection.SharedCliHandle := Qry.Connection.CliHandle;
   { Usará la misma dirección física o sessión del SGBD que la conexión entrante
     y compartirá el mismo estado de la transacción. }
   fdConnection.Connected       := True;
@@ -76,71 +75,32 @@ const
      NAME_PROC = 'USR$_%s';
      MUSR_ERR = 'No se ha encontrada ningún dataset dónde recoger los datos';
 var
-   FormatedQry: string;
    prcName: string;
-   pkFields: TList<String>;
    I: integer;
 begin
-  pkFields := TList<String>.Create;
-  try
-    FParamsStr := '';
-    { Get primary key fields of table name }
-    qryGetPKFields.ParamByName('TABLE_NAME').Value := FTableName;
-    qryGetPKFields.Open;
-    qryGetPKFields.First;
-//    Application.MessageBox(PChar('table ' + FTableName), PChar(''), MB_ICONERROR);
-    while not qryGetPKFields.Eof do
-    begin
+  { Componer el nombre del procedimiento. }
+  prcName := Format(NAME_PROC, [FProcName]);
 
-      if FParamsStr = '' then
-      begin
-        FParamsStr := '(:' + qryGetPKFieldsFIELD_NAME.AsString;
-      end
-      else
-      begin
-        FParamsStr := FParamsStr + ', :' + qryGetPKFieldsFIELD_NAME.AsString;
-      end;
+  fdStoredProc.Params.Clear;
+  fdStoredProc.StoredProcName := prcName;
+  fdStoredProc.Prepare;
 
-      if not pkFields.Contains(qryGetPKFieldsFIELD_NAME.AsString) then
-         pkFields.Add(qryGetPKFieldsFIELD_NAME.AsString);
-
-      qryGetPKFields.Next;
-    end;
-
-    if FParamsStr <> '' then
-    begin
-      FParamsStr := FParamsStr + ')';
-      prcName    := Format(NAME_PROC, [FProcName]);
-      prcName    := prcName + FParamsStr;
-    end;
-
-    FormatedQry := Format(sqlProc, [prcName]);
-    qryProc.SQL.Text := FormatedQry;
-
-    for I := 0 to pkFields.Count - 1 do
-    begin
-      qryProc.ParamByName(pkFields[I]).Value := Qry.FieldByName(pkFields[I]).Value;
-    end;
-
-  finally
-    pkFields.Free;
+  { Recorrer los parámetros del procedimiento }
+  for I := 0 to fdStoredProc.Params.Count - 1 do
+  begin
+    { Asignar los parametros de entrada. }
+    if fdStoredProc.Params[I].ParamType = ptInput then
+      fdStoredProc.Params[I].Value := Qry.FieldByName(fdStoredProc.Params[I].Name).Value;
   end;
-end;
-
-procedure TdmoExecProc.RefrescarQry(Qry: TFDQuery);
-begin
-  Qry.Refresh;
 end;
 
 procedure TdmoExecProc.CargarProcedimiento(Qry: TFDQuery);
 begin
   AsignConectionFromDM(Qry);
   FormatearProcedimiento(Qry);
+
   if ExecProcedimiento then
-  begin
-    // Refrescar los datasets del Módulo de datos origen
-    RefrescarQry(Qry);
-  end;
+    Qry.Refresh;
 end;
 
 function TdmoExecProc.ExecProcedimiento: boolean;
@@ -149,25 +109,12 @@ const
 begin
   Result := false;
   try
-    { Execute proc. }
-    qryProc.Open;
-    { Get output parameter to proc }
-    Result := qryProc.FieldByName(RES_FIELD).AsInteger = 1;
+    fdStoredProc.ExecProc;
+    Result := fdStoredProc.Params.ParamByName(RES_FIELD).AsBoolean;
   except
     on E: Exception do
-    begin
-       Application.MessageBox(PCHar(Format(ERR_EJECUTANDO_PROC, [FProcName]) + E.Message), PChar(''), MB_ICONERROR);
-    end;
+      Application.MessageBox(PCHar(Format(ERR_EJECUTANDO_PROC, [FProcName]) + E.Message), PChar(''), MB_ICONERROR);
   end;
-end;
-
-procedure TdmoExecProc.SetTableName(const Value: string);
-const
-     MUSR_ERR = 'No se ha asignado ningún nombre de tabla.';
-begin
-  if Value = '' then
-    raise Exception.Create(MUSR_ERR);
-  FTableName := Value;
 end;
 
 end.

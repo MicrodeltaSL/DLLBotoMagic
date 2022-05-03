@@ -66,6 +66,7 @@ object dmoExecProc: TdmoExecProc
         'Database=LOCALHOST:C:\Desarrollo\micTaller\micTaller\Dat\Dat\mic' +
         'Taller.FDB'
       'ExtendedMetadata=True')
+    Connected = True
     LoginPrompt = False
     Left = 208
     Top = 56
@@ -74,5 +75,10 @@ object dmoExecProc: TdmoExecProc
     Connection = fdConnection
     Left = 80
     Top = 168
+  end
+  object fdStoredProc: TFDStoredProc
+    Connection = fdConnection
+    Left = 344
+    Top = 80
   end
 end
