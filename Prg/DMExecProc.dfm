@@ -66,7 +66,6 @@ object dmoExecProc: TdmoExecProc
         'Database=LOCALHOST:C:\Desarrollo\micTaller\micTaller\Dat\Dat\mic' +
         'Taller.FDB'
       'ExtendedMetadata=True')
-    Connected = True
     LoginPrompt = False
     Left = 208
     Top = 56

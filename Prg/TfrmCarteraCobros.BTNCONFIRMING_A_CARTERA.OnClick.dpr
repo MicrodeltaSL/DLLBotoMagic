@@ -30,7 +30,7 @@ uses
 function Inicio(Sender: TObject): Boolean; stdcall;
 const
      MUSR_ERR = 'No se ha especificado el datamodulo o el datasource de la ventana en la propiedad HelpKeyWord.';
-     MUSR_ERR_NO_DATA_SET = 'No se ha encontrado el dataset de la ventana.';
+     MUSR_ERR_NO_DATA_SET = 'No se ha encontrado el dataset del data módulo %s con data source %s indicado en la propiedad HelpKeyWord del botón.';
 var
   FormLlamada: TForm;
   ButtonName: string;
@@ -59,7 +59,8 @@ begin
     { See if DataSource name = DllData.DsrcComp }
     if HasDataSource(FormLlamada.Components[I], dsrc) then
     begin
-      if dsrc.Name = DllData.DsrcComp then
+      if     (dsrc.Owner.Name = DllData.DmoComp)
+         and (dsrc.Name = DllData.DsrcComp) then
       begin
         Qry := TFDQuery(Dsrc.DataSet);
         if Assigned(Qry) then
@@ -71,7 +72,7 @@ begin
   end;
 
   if not Assigned(Qry) then
-    raise Exception.Create(MUSR_ERR_NO_DATA_SET);
+    raise Exception.CreateFmt(MUSR_ERR_NO_DATA_SET, [DllData.DmoComp, DllData.DsrcComp]);
 
   try
     DMProc           := TdmoExecProc.Create(nil);
