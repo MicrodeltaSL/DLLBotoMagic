@@ -91,6 +91,7 @@
         <VerInfo_IncludeVerInfo>true</VerInfo_IncludeVerInfo>
         <VerInfo_Locale>1033</VerInfo_Locale>
         <Manifest_File>(None)</Manifest_File>
+        <DCC_Namespace>Vcl;Vcl.Imaging;$(DCC_Namespace)</DCC_Namespace>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Cfg_2)'!=''">
         <DCC_LocalDebugSymbols>false</DCC_LocalDebugSymbols>
@@ -104,6 +105,7 @@
         </DelphiCompile>
         <DCCReference Include="DMExecProc.pas"/>
         <DCCReference Include="helpers\UDHelpers.pas"/>
+        <DCCReference Include="..\..\..\micTaller\micTaller\micTaller\Prg\interfaces\IFUserManager.pas"/>
         <BuildConfiguration Include="Release">
             <Key>Cfg_2</Key>
             <CfgParent>Base</CfgParent>

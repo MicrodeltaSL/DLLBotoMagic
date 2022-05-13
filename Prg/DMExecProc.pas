@@ -31,12 +31,12 @@ type
     { Private declarations }
     FProcName  : string;
     procedure AsignConectionFromDM(Qry: TFDQuery);
-    procedure FormatearProcedimiento(Qry: TFDQuery);
+    procedure FormatearProcedimiento(Qry: TFDQuery; CodEjercicio: integer);
     function ExecProcedimiento : boolean;
   public
     { Public declarations }
     property ProcName  : string read FProcName write FProcName;
-    procedure CargarProcedimiento(Qry: TFDQuery);
+    procedure CargarProcedimiento(Qry: TFDQuery; CodEjercicio: integer);
   end;
 
 var
@@ -70,7 +70,7 @@ begin
   fdConnection.Connected       := True;
 end;
 
-procedure TdmoExecProc.FormatearProcedimiento(Qry: TFDQuery);
+procedure TdmoExecProc.FormatearProcedimiento(Qry: TFDQuery; CodEjercicio: integer);
 const
      NAME_PROC = 'USR$_%s';
      MUSR_ERR = 'No se ha encontrada ningún dataset dónde recoger los datos';
@@ -84,9 +84,9 @@ begin
   fdStoredProc.Params.Clear;
   fdStoredProc.StoredProcName := prcName;
   fdStoredProc.Prepare;
-
+  fdStoredProc.Params[0].Value := CodEjercicio;
   { Recorrer los parámetros del procedimiento }
-  for I := 0 to fdStoredProc.Params.Count - 1 do
+  for I := 1 to fdStoredProc.Params.Count - 1 do
   begin
     { Asignar los parametros de entrada. }
     if fdStoredProc.Params[I].ParamType = ptInput then
@@ -94,10 +94,10 @@ begin
   end;
 end;
 
-procedure TdmoExecProc.CargarProcedimiento(Qry: TFDQuery);
+procedure TdmoExecProc.CargarProcedimiento(Qry: TFDQuery; CodEjercicio: integer);
 begin
   AsignConectionFromDM(Qry);
-  FormatearProcedimiento(Qry);
+  FormatearProcedimiento(Qry, CodEjercicio);
 
   if ExecProcedimiento then
     Qry.Refresh;

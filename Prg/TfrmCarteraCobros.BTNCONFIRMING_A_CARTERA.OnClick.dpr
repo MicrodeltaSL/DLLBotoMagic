@@ -23,7 +23,8 @@ uses
   System.Types,
   System.TypInfo,
   Data.DB {dmoExecProc: TDataModule},
-  UDHelpers in 'helpers\UDHelpers.pas';
+  UDHelpers in 'helpers\UDHelpers.pas',
+  IFUserManager in '..\..\..\micTaller\micTaller\micTaller\Prg\interfaces\IFUserManager.pas';
 
 {$R *.res}
 
@@ -33,6 +34,7 @@ const
      MUSR_ERR_NO_DATA_SET = 'No se ha encontrado el dataset del data módulo %s con data source %s indicado en la propiedad HelpKeyWord del botón.';
 var
   FormLlamada: TForm;
+  FormPrincipal: TForm;
   ButtonName: string;
   DllData: TDllData;
   DMProc: TdmoExecProc;
@@ -40,9 +42,14 @@ var
   Qry: TFDQuery;
   valsHelpKeyword: TStringDynArray;
   I: integer;
+  UserManager  : IUserManager;
 begin
-  FormLlamada := TForm(TComponent(sender).Owner);
-  ButtonName  := TComponent(Sender).Name;
+  FormLlamada     := TForm(TComponent(sender).Owner);
+  FormPrincipal   := TForm(FormLlamada.Owner);
+  { Sabemos que el formulario principal puede gestionar usuarios }
+  Supports(FormPrincipal, IUserManager, UserManager);
+
+  ButtonName      := TComponent(Sender).Name;
   valsHelpKeyword := SplitString(TControl(Sender).helpKeyWord, '.');
 
   if length(valsHelpKeyword) < 2 then
@@ -77,7 +84,7 @@ begin
   try
     DMProc           := TdmoExecProc.Create(nil);
     DMProc.ProcName  := ButtonName;
-    DMProc.CargarProcedimiento(Qry);
+    DMProc.CargarProcedimiento(Qry, UserManager.GetActiveUser.Ejercicio);
   finally
     DMProc.Free;
     result := true;
